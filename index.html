@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ninja Frog</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.24.0/dist/phaser-arcade-physics.min.js"></script>
+</head>
+<body>
+<script>
+    var config = {
+        type: Phaser.CANVAS,
+        width: 384,
+        height: 600,
+        physics: {
+            default: 'arcade',
+            arcade: {
+                gravity: { y: 500 }
+            }
+        },
+        scene: {
+            init: init,
+            preload: preload,
+            create: create,
+            update: update
+        }
+    };
+
+    let platforms;
+    let fruits;
+    let ground;
+    let player;
+    let sky;
+    let height = 4000;
+    let width = 384;
+    let score = 0;
+    let scoreText;
+
+    let game = new Phaser.Game(config);
+
+    function init() {
+        this.game.renderer.resize(width, height);
+        console.log(this)
+    }
+
+    function preload() {
+        this.load.image('platform', 'assets/platform.png');
+        this.load.image('ground', 'assets/dirt.png');
+        this.load.spritesheet('fruit', 'assets/pineapple.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('frog_fall', 'assets/frog_fall.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('frog_jump', 'assets/frog_jump.png', { frameWidth: 32, frameHeight: 32 });
+    }
+
+    function create() {
+        this.physics.world.setBounds(0, 0, width, height, true, true, true, true);
+        this.cameras.main.setBounds(0, 0, width, height);
+        this.cameras.main.setBackgroundColor('#2f9acc');
+        console.log(sky);
+
+        // Set ground
+        ground = this.physics.add.staticGroup();
+        for (let i = 0; i < width; i += 48) {
+            ground.create(i + 24, height - 22, 'ground');
+        }
+
+        // Create platforms
+        let last;
+        platforms = this.physics.add.staticGroup();
+        fruits = this.physics.add.group();
+        for (let i = 1; i < 100; i++) {
+            last = Phaser.Math.Between(24, 360);
+            platforms.create(last, (height - 45) - (i * 100), 'platform');
+            fruits.create(last, (height - 45) - (i * 100) - 5, 'fruit');
+            while(last > 288 || last < 96) {
+                last = Phaser.Math.Between(24, 360);
+                platforms.create(last, (height - 45) - (i * 100), 'platform');
+            }
+        }
+        
+        // Create player
+        player = this.physics.add.sprite(width / 2, height - 100, 'frog_fall');
+        this.anims.create({
+            key: 'up',
+            frames: [ { key: 'frog_jump', frame: 0} ],
+            keyframe: 20
+        });
+        this.anims.create({
+            key: 'down',
+            frames: [ { key: 'frog_fall', frame: 0} ],
+            keyframe: 20
+        });
+
+        // Create colliders
+        player.setCollideWorldBounds(true);
+        this.physics.add.collider(player, ground);
+        this.physics.add.collider(player, platforms);
+        this.physics.add.collider(fruits, platforms);
+        this.physics.add.overlap(player, fruits, eatFruit, null, this);
+
+        this.cameras.main.startFollow(player);
+
+        scoreText = this.add.text(16, 16, 'Score: 0').setScrollFactor(0);
+    }
+
+    function update() {
+        // Movement
+        var pointer = this.input.activePointer;
+        if(pointer.isDown) {
+            if(pointer.worldX < player.x) {
+                player.setVelocityX(-125);
+            }
+            else if(pointer.worldX > player.x) {
+                player.setVelocityX(125);
+            }
+        }
+        if(player.body.touching.down) {
+            player.setVelocityY(-375);
+            player.setVelocityX(0);
+        }
+
+        // Sprite animation
+        if(player.body.velocity.y < 0) {
+            player.anims.play('up');
+        }
+        else {
+            player.anims.play('down');
+        }
+        if(player.body.velocity.x < 0) {
+            player.setFlipX(true);
+        }
+        else if(player.body.velocity.x > 0) {
+            player.resetFlip()
+        }
+    }
+
+    function eatFruit(player, fruit) {
+        fruit.disableBody(true, true);
+        score += 10;
+        scoreText.setText('Score: ' + score);
+    }
+
+</script>
+</body>
+</html>
